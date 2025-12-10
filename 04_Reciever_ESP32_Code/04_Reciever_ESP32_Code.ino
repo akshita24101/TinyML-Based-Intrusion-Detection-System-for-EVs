@@ -44,6 +44,10 @@ const uint16_t SERVER_PORT = 8888;                // WiFi server port
 #define LCD_SDA 21        // I2C LCD Data
 #define LCD_SCL 22        // I2C LCD Clock
 
+// RGB LED Pins (Common Anode)
+#define LED_RED 25        // Red pin of RGB LED
+#define LED_GREEN 26      // Green pin of RGB LED
+
 // ============================================
 // GLOBAL VARIABLES - LCD
 // ============================================
@@ -119,6 +123,15 @@ struct Statistics {
 Statistics stats;
 
 // ============================================
+// LED STATE TRACKING
+// ============================================
+unsigned long lastGreenBlink = 0;
+bool greenLedState = false;
+int currentSystemState = 0;  // 0 = Attack Free, 1 = DoS, 2 = Fuzzy
+unsigned long greenOnTime = 150;   // LED on duration (ms)
+unsigned long greenOffTime = 2000;  // LED off duration (ms)
+
+// ============================================
 // SETUP FUNCTION
 // ============================================
 void setup() {
@@ -128,6 +141,12 @@ void setup() {
   Serial.println("========================================");
   Serial.println("ESP32 TinyML IDS - WIRELESS VERSION");
   Serial.println("========================================");
+
+  // Initialize RGB LED pins
+  pinMode(LED_RED, OUTPUT);
+  pinMode(LED_GREEN, OUTPUT);
+  digitalWrite(LED_RED, HIGH);   // OFF for common anode
+  digitalWrite(LED_GREEN, HIGH); // OFF for common anode
 
   // Initialize I2C LCD
   Wire.begin(LCD_SDA, LCD_SCL);
@@ -503,6 +522,35 @@ bool parseRawDatasetRow(uint32_t* can_id, uint8_t* dlc, uint8_t data[8]) {
 }
 
 // ============================================
+// RGB LED CONTROL FUNCTIONS (Common Anode)
+// ============================================
+void setLED(bool red, bool green) {
+  digitalWrite(LED_RED, red ? LOW : HIGH);
+  digitalWrite(LED_GREEN, green ? LOW : HIGH);
+}
+
+void ledOff() {
+  setLED(false, false);
+}
+
+void ledRed() {
+  setLED(true, false);
+}
+
+void ledGreen() {
+  setLED(false, true);
+}
+
+void blinkWarning() {
+  for (int i = 0; i < 5; i++) {
+    ledRed();
+    delay(100);
+    ledOff();
+    delay(100);
+  }
+}
+
+// ============================================
 // PROCESS DATA (from WiFi or Serial)
 // ============================================
 void processData(String input, bool fromWiFi) {
@@ -557,6 +605,17 @@ void processData(String input, bool fromWiFi) {
     else if (prediction == 1) stats.dos_attacks++;
     else if (prediction == 2) stats.fuzzy_attacks++;
     
+    // Handle LED based on prediction
+    if (prediction != currentSystemState) {
+      if (prediction == 0) {
+        currentSystemState = 0;
+      } else {
+        currentSystemState = prediction;
+        blinkWarning();
+        ledRed();
+      }
+    }
+    
     float confidence = output->data.f[prediction];
     
     Serial.println("\n========================================");
@@ -593,6 +652,24 @@ void processData(String input, bool fromWiFi) {
 // LOOP FUNCTION (WiFi + Serial)
 // ============================================
 void loop() {
+  // Handle LED blinking based on system state (airplane wing style)
+  if (currentSystemState == 0) {
+    unsigned long currentTime = millis();
+    unsigned long elapsed = currentTime - lastGreenBlink;
+    
+    if (greenLedState && elapsed >= greenOnTime) {
+      // Turn off after 100ms
+      ledOff();
+      greenLedState = false;
+      lastGreenBlink = currentTime;
+    } else if (!greenLedState && elapsed >= greenOffTime) {
+      // Turn on after 1000ms
+      ledGreen();
+      greenLedState = true;
+      lastGreenBlink = currentTime;
+    }
+  }
+  
   // Check WiFi client
   if (WiFi.status() == WL_CONNECTED) {
     if (server.hasClient()) {
