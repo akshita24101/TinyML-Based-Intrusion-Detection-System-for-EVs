@@ -16,6 +16,7 @@
 #include <SD.h>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
+#include <WiFi.h>
 
 // TensorFlow Lite for ESP32
 #include <TensorFlowLite_ESP32.h>
@@ -25,6 +26,13 @@
 #include "tensorflow/lite/schema/schema_generated.h"
 
 #include "model_data.h"  // Your TFLite model as C array
+
+// ============================================
+// WIFI CONFIGURATION - UPDATE THESE!
+// ============================================
+const char* WIFI_SSID = "Virus.exe";        // Change to your WiFi name
+const char* WIFI_PASSWORD = "Exorev@3727"; // Change to your WiFi password
+const uint16_t SERVER_PORT = 8888;                // WiFi server port
 
 // ============================================
 // PIN DEFINITIONS
@@ -40,6 +48,12 @@
 // GLOBAL VARIABLES - LCD
 // ============================================
 LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+// ============================================
+// GLOBAL VARIABLES - WiFi Server
+// ============================================
+WiFiServer server(SERVER_PORT);
+WiFiClient serverClient;
 
 // ============================================
 // GLOBAL VARIABLES - TensorFlow Lite
@@ -99,6 +113,8 @@ struct Statistics {
   unsigned long dos_attacks = 0;
   unsigned long fuzzy_attacks = 0;
   unsigned long inference_time_us = 0;
+  unsigned long wifi_messages = 0;
+  unsigned long serial_messages = 0;
 };
 Statistics stats;
 
@@ -110,7 +126,7 @@ void setup() {
   delay(1000);
   
   Serial.println("========================================");
-  Serial.println("ESP32 TinyML IDS - RAW DATASET INPUT");
+  Serial.println("ESP32 TinyML IDS - WIRELESS VERSION");
   Serial.println("========================================");
 
   // Initialize I2C LCD
@@ -123,7 +139,52 @@ void setup() {
   lcd.setCursor(0, 1);
   lcd.print("Initializing...");
   
-  Serial.println("[1/3] Initializing SD Card...");
+  Serial.println("[1/4] Connecting to WiFi...");
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  WiFi.mode(WIFI_STA);
+  
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Connecting WiFi");
+  
+  int retry_count = 0;
+  while (WiFi.status() != WL_CONNECTED && retry_count < 30) {
+    delay(500);
+    Serial.print(".");
+    retry_count++;
+  }
+  
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\n  ✓ WiFi Connected!");
+    Serial.print("  IP Address: ");
+    Serial.println(WiFi.localIP());
+    Serial.print("  Signal: ");
+    Serial.print(WiFi.RSSI());
+    Serial.println(" dBm");
+    
+    server.begin();
+    Serial.print("  Server started on port ");
+    Serial.println(SERVER_PORT);
+    
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("WiFi Connected");
+    lcd.setCursor(0, 1);
+    lcd.print(WiFi.localIP());
+    delay(2000);
+  } else {
+    Serial.println("\n  ✗ WiFi Failed!");
+    Serial.println("  Continuing in Serial-only mode...");
+    
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("WiFi Failed!");
+    lcd.setCursor(0, 1);
+    lcd.print("Serial Mode");
+    delay(2000);
+  }
+  
+  Serial.println("[2/4] Initializing SD Card...");
   
   // Initialize SD Card with custom pins
   SPI.begin(SD_SCK, SD_MISO, SD_MOSI, SD_CS);
@@ -137,7 +198,7 @@ void setup() {
   Serial.println("  ✓ SD Card initialized");
 
   // Initialize TensorFlow Lite
-  Serial.println("[2/3] Initializing TensorFlow Lite...");
+  Serial.println("[3/4] Initializing TensorFlow Lite...");
   
   static tflite::MicroErrorReporter micro_error_reporter;
   error_reporter = &micro_error_reporter;
@@ -189,12 +250,25 @@ void setup() {
   }
   Serial.println("  ✓ TensorFlow Lite ready");
 
-  Serial.println("[3/3] System Ready!");
+  Serial.println("[4/4] System Ready!");
   Serial.println("========================================");
-  Serial.println("Paste dataset rows from Serial Monitor");
-  Serial.println("Format: CAN_ID(decimal),DLC,DATA[0-7](hex)");
+  Serial.println("Data Input Modes:");
+  Serial.println("  1. WiFi from ESP8266 transmitter");
+  Serial.println("  2. Serial Monitor (backup mode)");
+  Serial.println("\nFormat: CAN_ID(decimal),DLC,DATA[0-7](hex)");
   Serial.println("Example: 0165000,8,0e,e8,7f,00,00,00,07,9e\n");
-  Serial.println("> Waiting for input...\n");
+  
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println(">>> UPDATE ESP8266 WITH THIS IP <<<");
+    Serial.print(">>> ESP32 IP: ");
+    Serial.print(WiFi.localIP());
+    Serial.println(" <<<");
+    Serial.println("========================================\n");
+    Serial.println("> Waiting for WiFi/Serial input...\n");
+  } else {
+    Serial.println("========================================\n");
+    Serial.println("> Waiting for Serial input...\n");
+  }
 
   lcd.clear();
   lcd.setCursor(0, 0);
@@ -337,18 +411,29 @@ void updateLCD(int prediction, float confidence) {
 void printStatistics() {
   Serial.println("\n========== STATISTICS ==========");
   Serial.printf("Total Messages: %lu\n", stats.total_messages);
+  Serial.printf("  WiFi:         %lu (%.1f%%)\n",
+                stats.wifi_messages,
+                stats.total_messages > 0 ? (float)stats.wifi_messages / stats.total_messages * 100 : 0);
+  Serial.printf("  Serial:       %lu (%.1f%%)\n",
+                stats.serial_messages,
+                stats.total_messages > 0 ? (float)stats.serial_messages / stats.total_messages * 100 : 0);
+  Serial.println("--------------------------------");
   Serial.printf("Attack Free:    %lu (%.1f%%)\n", 
                 stats.attack_free, 
-                (float)stats.attack_free / stats.total_messages * 100);
+                stats.total_messages > 0 ? (float)stats.attack_free / stats.total_messages * 100 : 0);
   Serial.printf("DoS Attacks:    %lu (%.1f%%)\n", 
                 stats.dos_attacks, 
-                (float)stats.dos_attacks / stats.total_messages * 100);
+                stats.total_messages > 0 ? (float)stats.dos_attacks / stats.total_messages * 100 : 0);
   Serial.printf("Fuzzy Attacks:  %lu (%.1f%%)\n", 
                 stats.fuzzy_attacks, 
-                (float)stats.fuzzy_attacks / stats.total_messages * 100);
+                stats.total_messages > 0 ? (float)stats.fuzzy_attacks / stats.total_messages * 100 : 0);
   Serial.printf("Avg Inference:  %lu us (%.2f ms)\n", 
                 stats.inference_time_us, 
                 stats.inference_time_us / 1000.0);
+  
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.printf("WiFi Signal:    %d dBm\n", WiFi.RSSI());
+  }
   Serial.println("================================\n");
 }
 
@@ -418,70 +503,119 @@ bool parseRawDatasetRow(uint32_t* can_id, uint8_t* dlc, uint8_t data[8]) {
 }
 
 // ============================================
-// LOOP FUNCTION (RAW DATASET INPUT MODE)
+// PROCESS DATA (from WiFi or Serial)
+// ============================================
+void processData(String input, bool fromWiFi) {
+  uint32_t can_id;
+  uint8_t dlc;
+  uint8_t data[8];
+  
+  input.trim();
+  if (input.length() == 0) return;
+  
+  // Parse comma-separated values
+  String tokens[10];
+  int index = 0;
+  int start = 0;
+  
+  for (int i = 0; i <= input.length() && index < 10; i++) {
+    if (i == input.length() || input.charAt(i) == ',') {
+      String token = input.substring(start, i);
+      token.trim();
+      tokens[index] = token;
+      index++;
+      start = i + 1;
+    }
+  }
+  
+  if (index < 2) return;
+  
+  can_id = strtoul(tokens[0].c_str(), NULL, 10);
+  dlc = tokens[1].toInt();
+  
+  for (int i = 0; i < 8; i++) {
+    if (i + 2 < index) {
+      String hexStr = tokens[i + 2];
+      if (hexStr.startsWith("0x") || hexStr.startsWith("0X")) {
+        hexStr = hexStr.substring(2);
+      }
+      data[i] = strtoul(hexStr.c_str(), NULL, 16);
+    } else {
+      data[i] = 0;
+    }
+  }
+  
+  // Run inference
+  int prediction = runInferenceRaw(can_id, dlc, data);
+  
+  if (prediction >= 0) {
+    stats.total_messages++;
+    if (fromWiFi) stats.wifi_messages++;
+    else stats.serial_messages++;
+    
+    if (prediction == 0) stats.attack_free++;
+    else if (prediction == 1) stats.dos_attacks++;
+    else if (prediction == 2) stats.fuzzy_attacks++;
+    
+    float confidence = output->data.f[prediction];
+    
+    Serial.println("\n========================================");
+    Serial.printf("[%lu] %s Input\n", stats.total_messages, fromWiFi ? "WiFi" : "Serial");
+    Serial.printf("CAN ID: %lu | DLC: %d\n", can_id, dlc);
+    
+    Serial.print("  Data (hex): ");
+    for (int i = 0; i < 8; i++) {
+      Serial.printf("0x%02X ", data[i]);
+    }
+    Serial.println();
+    
+    Serial.printf("  PREDICTION: %s\n", attack_labels[prediction]);
+    Serial.printf("  Confidence: %.2f%%\n", confidence * 100);
+    
+    Serial.printf("  Probabilities:\n");
+    Serial.printf("    Attack_Free: %.2f%%\n", output->data.f[0] * 100);
+    Serial.printf("    DoS:         %.2f%%\n", output->data.f[1] * 100);
+    Serial.printf("    Fuzzy:       %.2f%%\n", output->data.f[2] * 100);
+    Serial.printf("  Inference Time: %lu us (%.2f ms)\n", 
+                  stats.inference_time_us, stats.inference_time_us / 1000.0);
+    Serial.println("========================================");
+    
+    updateLCD(prediction, confidence);
+    logToSD(can_id, dlc, data, prediction);
+    
+    if (stats.total_messages % 100 == 0) {
+      printStatistics();
+    }
+  }
+}
+
+// ============================================
+// LOOP FUNCTION (WiFi + Serial)
 // ============================================
 void loop() {
-  // Check for serial input
-  if (Serial.available()) {
-    uint32_t can_id;
-    uint8_t dlc;
-    uint8_t data[8];
-    
-    if (parseRawDatasetRow(&can_id, &dlc, data)) {
-      // Run inference with raw dataset format
-      int prediction = runInferenceRaw(can_id, dlc, data);
-      
-      if (prediction >= 0) {
-        // Update statistics
-        stats.total_messages++;
-        if (prediction == 0) stats.attack_free++;
-        else if (prediction == 1) stats.dos_attacks++;
-        else if (prediction == 2) stats.fuzzy_attacks++;
-        
-        // Get confidence
-        float confidence = output->data.f[prediction];
-        
-        // Print to Serial
-        Serial.println("\n========================================");
-        Serial.printf("[%lu] CAN ID: %lu | DLC: %d\n",
-                      stats.total_messages, can_id, dlc);
-        
-        // Print data bytes in hex
-        Serial.print("  Data (hex): ");
-        for (int i = 0; i < 8; i++) {
-          Serial.printf("0x%02X ", data[i]);
-        }
-        Serial.println();
-        
-        // Print prediction
-        Serial.printf("  PREDICTION: %s\n", attack_labels[prediction]);
-        Serial.printf("  Confidence: %.2f%%\n", confidence * 100);
-        
-        // Print all class probabilities
-        Serial.printf("  Probabilities:\n");
-        Serial.printf("    Attack_Free: %.2f%%\n", output->data.f[0] * 100);
-        Serial.printf("    DoS:         %.2f%%\n", output->data.f[1] * 100);
-        Serial.printf("    Fuzzy:       %.2f%%\n", output->data.f[2] * 100);
-        Serial.printf("  Inference Time: %lu us (%.2f ms)\n", 
-                      stats.inference_time_us, stats.inference_time_us / 1000.0);
-        Serial.println("========================================");
-        
-        // Update LCD
-        updateLCD(prediction, confidence);
-        
-        // Log to SD card
-        logToSD(can_id, dlc, data, prediction);
-        
-        // Print statistics every 100 messages
-        if (stats.total_messages % 100 == 0) {
-          printStatistics();
-        }
+  // Check WiFi client
+  if (WiFi.status() == WL_CONNECTED) {
+    if (server.hasClient()) {
+      if (serverClient && serverClient.connected()) {
+        serverClient.stop();
       }
+      serverClient = server.available();
+      Serial.println("\n>>> ESP8266 Transmitter Connected <<<\n");
     }
     
-    // Prompt for next message
+    if (serverClient && serverClient.connected() && serverClient.available()) {
+      String input = serverClient.readStringUntil('\n');
+      serverClient.println("OK");
+      processData(input, true);
+    }
+  }
+  
+  // Check serial input (backup mode)
+  if (Serial.available()) {
+    String input = Serial.readStringUntil('\n');
+    processData(input, false);
     Serial.println("\n> Paste next dataset row:");
   }
   
-  delay(10);  // Small delay to prevent serial buffer overrun
+  delay(10);
 }
