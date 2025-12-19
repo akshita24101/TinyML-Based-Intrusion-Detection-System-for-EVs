@@ -30,8 +30,8 @@
 // ============================================
 // WIFI CONFIGURATION - UPDATE THESE!
 // ============================================
-const char* WIFI_SSID = "Virus.exe";        // Change to your WiFi name
-const char* WIFI_PASSWORD = "Exorev@3727"; // Change to your WiFi password
+const char* WIFI_SSID = "Virus";        // Change to your WiFi name
+const char* WIFI_PASSWORD = "123456789"; // Change to your WiFi password
 const uint16_t SERVER_PORT = 8888;                // WiFi server port
 
 // ============================================
