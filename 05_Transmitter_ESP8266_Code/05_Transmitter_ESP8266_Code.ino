@@ -28,7 +28,7 @@ const char* WIFI_PASSWORD = "123456789"; // Change to your WiFi password
 // ============================================
 // ESP32 RECEIVER CONFIGURATION
 // ============================================
-const char* ESP32_SERVER_IP = "10.148.155.91";   // Update with ESP32's IP address
+const char* ESP32_SERVER_IP = "172.22.84.12";   // Update with ESP32's IP address
 const uint16_t ESP32_SERVER_PORT = 8888;         // Port for communication
 
 // ============================================
