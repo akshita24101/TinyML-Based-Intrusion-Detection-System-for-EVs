@@ -308,6 +308,7 @@ Use these sample CAN frames to test the system:
 0000000,8,00,00,00,00,00,00,00,00
 01f1000,8,00,00,00,00,00,00,00,00
 02a0000,8,62,00,88,9d,bc,0c,b7,02
+```
 
 - Fuzzy attack samples
 ```
