@@ -296,18 +296,21 @@ The model was trained for ~80 epochs, achieving:
 
 Use these sample CAN frames to test the system:
 
+- Attack_Free samples
 ```
-# Attack_Free samples
 0080000,8,00,17,1c,0a,1d,17,1d,94
 0165000,8,0f,e8,7f,00,00,00,06,9e
 0370000,8,ff,20,00,80,ff,00,00,ec
+```
 
-# DoS attack samples
+- DoS attack samples
+```
 0000000,8,00,00,00,00,00,00,00,00
 01f1000,8,00,00,00,00,00,00,00,00
 02a0000,8,62,00,88,9d,bc,0c,b7,02
 
-# Fuzzy attack samples
+- Fuzzy attack samples
+```
 0220000,8,c2,03,ef,03,0c,00,45,10
 0164000,8,50,b6,bb,ff,1a,30,a8,47
 01f1000,8,1a,30,1f,4f,30,62,79,91
@@ -331,6 +334,7 @@ This project was developed as a **Minor Project (Semester 3)** at **IIIT Naya Ra
   <tr>
     <td align="center"><a href="https://github.com/akshita24101"><b>Akshita Sondhi</b></a></td>
     <td align="center"><a href="https://github.com/exorev07"><b>Ekansh Arohi</b></a></td>
+    <td align="center"><a href="https://github.com/karishmasroy"><b> Karishma Singha Roy</b></a></td>
   </tr>
 </table>
 
