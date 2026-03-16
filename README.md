@@ -53,19 +53,19 @@ This project demonstrates an **edge-based IDS** built with **TinyML** that:
 ## 🏗️ System Architecture
 
 ```
-┌─────────────────────────────┐        WiFi (TCP)          ┌──────────────────────────────────┐
-│     ESP8266 (Attacker)      │ ────────────────────────>  │       ESP32 (Vehicle/IDS)        │
-│                             │    CAN frames over WiFi    │                                  │
-│  • Reads CAN data via       │                            │  • Receives CAN frames           │
-│    Serial from laptop       │                            │  • Preprocesses (hex→numeric,    │
-│  • Simulates attack         │                            │    MinMax scaling)               │
-│    traffic (DoS / Fuzzy)    │                            │  • Runs TFLite MLP inference     │
-│  • Transmits to ESP32       │                            │  • Classifies: Attack_Free /     │
-│    via TCP socket           │                            │    DoS / Fuzzy                   │
-│                             │                            │  • Displays on 16x2 LCD          │
-│  Hardware: NodeMCU/         │                            │  • Logs to SD card               │
-│  Wemos D1 Mini              │                            │  • RGB LED alert indicator       │
-└─────────────────────────────┘                            └──────────────────────────────────┘
+      ┌─────────────────────────────┐        WiFi (TCP)          ┌──────────────────────────────────┐
+      │     ESP8266 (Attacker)      │ ────────────────────────>  │       ESP32 (Vehicle/IDS)        │
+      │                             │    CAN frames over WiFi    │                                  │
+      │  • Reads CAN data via       │                            │  • Receives CAN frames           │
+      │    Serial from laptop       │                            │  • Preprocesses (hex→numeric,    │
+      │  • Simulates attack         │                            │    MinMax scaling)               │
+      │    traffic (DoS / Fuzzy)    │                            │  • Runs TFLite MLP inference     │
+      │  • Transmits to ESP32       │                            │  • Classifies: Attack_Free /     │
+      │    via TCP socket           │                            │    DoS / Fuzzy                   │
+      │                             │                            │  • Displays on 16x2 LCD          │
+      │  Hardware: NodeMCU/         │                            │  • Logs to SD card               │
+      │  Wemos D1 Mini              │                            │  • RGB LED alert indicator       │
+      └─────────────────────────────┘                            └──────────────────────────────────┘
 ```
 
 Both devices connect to the **same WiFi network**, simulating a scenario where an attacker node shares the same local network as the vehicle's onboard system.
