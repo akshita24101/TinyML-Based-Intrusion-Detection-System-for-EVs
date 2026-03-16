@@ -1,15 +1,12 @@
 <div align="center">
 
 # TinyML-Based Intrusion Detection System for Electric Vehicles
-
-**Edge-deployed CAN bus intrusion detection using TensorFlow Lite on ESP32**
+*A lightweight, offline, privacy-preserving IDS that detects DoS and Fuzzy attacks on EV CAN networks entirely on-device.*
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![Platform](https://img.shields.io/badge/Platform-ESP32%20|%20ESP8266-green)
 ![Framework](https://img.shields.io/badge/Framework-TensorFlow%20Lite-orange)
 ![Language](https://img.shields.io/badge/Language-C++%20|%20Python-yellow)
-
-*A lightweight, offline, privacy-preserving IDS that detects DoS and Fuzzy attacks on EV CAN networks — entirely on-device.*
 
 </div>
 
