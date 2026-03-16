@@ -231,7 +231,7 @@ This generates `ids_model.tflite` and `model_data.h`.
 #### 5️⃣ Run the System
 1. Power on both devices (same WiFi network)
 2. ESP32 starts a TCP server on **port 8888**
-3. On ESP8266's Serial Monitor, paste CAN data rows:
+3. On ESP8266's Serial Monitor, paste sample CAN data rows:
    ```
    0165000,8,0e,e8,7f,00,00,00,07,9e
    ```
@@ -241,11 +241,11 @@ This generates `ids_model.tflite` and `model_data.h`.
 
 ## ⚙️ How It Works
 
-1. **Data Input** — CAN frames are fed to the ESP8266 via Serial Monitor (simulating attack/normal traffic)
-2. **Wireless Transmission** — ESP8266 transmits each frame to the ESP32 over WiFi (TCP socket on port 8888)
-3. **On-Device Preprocessing** — ESP32 parses the raw CAN frame, converts hex values to numeric, and applies MinMaxScaler normalization using pre-computed scaler parameters
-4. **TFLite Inference** — The preprocessed 10-feature vector is fed into the MLP model running on TensorFlow Lite Micro
-5. **Classification** — Output softmax probabilities determine the class: `Attack_Free`, `DoS`, or `Fuzzy`
+1. **Data Input** - CAN frames are fed to the ESP8266 via Serial Monitor (simulating attack/normal traffic)
+2. **Wireless Transmission** - ESP8266 transmits each frame to the ESP32 over WiFi (TCP socket on port 8888)
+3. **On-Device Preprocessing** - ESP32 parses the raw CAN frame, converts hex values to numeric, and applies MinMaxScaler normalization using pre-computed scaler parameters
+4. **TFLite Inference** - The preprocessed 10-feature vector is fed into the MLP model running on TensorFlow Lite Micro
+5. **Classification** - Output softmax probabilities determine the class: `Attack_Free`, `DoS`, or `Fuzzy`
 6. **Alerting & Logging:**
    - **LCD Display:** Shows prediction and confidence percentage
    - **RGB LED:** Green blink = normal, Red = attack detected
@@ -266,6 +266,8 @@ This generates `ids_model.tflite` and `model_data.h`.
 | **Model Size** | N/A (not deployed) | **~49 KB** (.tflite) |
 | **Tensor Arena** | N/A | **30 KB** |
 | **Target Hardware** | PC | **ESP32** |
+
+</div>
 
 ### Confusion Matrix
 
